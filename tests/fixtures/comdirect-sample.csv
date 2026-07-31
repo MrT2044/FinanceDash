@@ -1,0 +1,9 @@
+;
+"Umsätze Girokonto";"Zeitraum: 30 Tage";
+"Neuer Kontostand";"3.418,22 EUR";
+
+"Buchungstag";"Wertstellung (Valuta)";"Vorgang";"Buchungstext";"Umsatz in EUR";
+"07.07.2026";"07.07.2026";"Kartenverfügung";"Empfänger: LIDL DIENSTLEISTUNG Buchungstext: LIDL SAGT DANKE Ref. 4711AB";"-27,84";
+"01.07.2026";"01.07.2026";"Übertrag/Gutschrift";"Empfänger: Max Mustermann Buchungstext: Gehalt Juli 2026 Ref. GEH0726";"2.450,00";
+"11.07.2026";"11.07.2026";"Lastschrift";"Empfänger: Vodafone GmbH Buchungstext: Mobilfunk Juli Ref. VF88123";"-39,99";
+"18.07.2026";"18.07.2026";"Kartenverfügung";"Empfänger: MediaMarkt Buchungstext: Elektronik Ref. MM55221";"-349,00";

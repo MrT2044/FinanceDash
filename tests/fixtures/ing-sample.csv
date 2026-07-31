@@ -1,0 +1,15 @@
+Umsatzanzeige;Datei erstellt am: 31.07.2026 09:12
+;Letztes Update: aktuell
+
+IBAN;DE12500105170648489890
+Kontoname;Girokonto
+Bank;ING
+Kunde;Max Mustermann
+Zeitraum;01.07.2026 - 31.07.2026
+Saldo;3.418,22;EUR
+
+Buchung;Valuta;Auftraggeber/Empfänger;Buchungstext;Verwendungszweck;Saldo;Währung;Betrag;Währung
+06.07.2026;06.07.2026;ALDI SUED;Lastschrift;ALDI SUED SAGT DANKE;3418,22;EUR;-38,45;EUR
+01.07.2026;01.07.2026;Muster GmbH;Gehalt;Gehalt Juli 2026;3456,67;EUR;2.450,00;EUR
+09.07.2026;09.07.2026;Shell Deutschland;Kartenzahlung;SHELL TANKSTELLE 4711;1006,67;EUR;-72,30;EUR
+15.07.2026;15.07.2026;Techniker Krankenkasse;Lastschrift;Beitrag Juli 2026;1078,97;EUR;-118,50;EUR
