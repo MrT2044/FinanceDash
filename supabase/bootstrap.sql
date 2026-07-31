@@ -668,6 +668,32 @@ create index if not exists import_batches_account_id_idx
   on public.import_batches (account_id);
 
 -- ============================================================
+-- 20260731200001_balance_function.sql
+-- ============================================================
+-- Kontostand über den gesamten Bestand.
+--
+-- Das Dashboard lädt aus Performancegründen nur die letzten 12 Monate. Der
+-- Kontostand muss aber alle Buchungen umfassen, sonst stimmt die Kennzahl
+-- sobald jemand einen längeren Zeitraum importiert.
+--
+-- SECURITY INVOKER (Standard): die Funktion läuft mit den Rechten des
+-- Aufrufers, RLS greift also unverändert und liefert nur eigene Buchungen.
+
+create or replace function public.current_balance()
+returns numeric
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select coalesce(sum(amount), 0)::numeric
+  from public.transactions;
+$$;
+
+revoke all on function public.current_balance() from public, anon;
+grant execute on function public.current_balance() to authenticated;
+
+-- ============================================================
 -- Profile für bereits registrierte Benutzer nachtragen
 -- ============================================================
 insert into public.profiles (id, display_name)
@@ -698,7 +724,8 @@ begin
       ('20260731100011'),
       ('20260731172519'),
       ('20260731174414'),
-      ('20260731175226')
+      ('20260731175226'),
+      ('20260731200001')
     on conflict (version) do nothing;
   end if;
 end

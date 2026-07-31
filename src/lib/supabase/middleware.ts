@@ -15,6 +15,12 @@ const PUBLIC_PATHS = [
 
 const AUTH_PATHS = ["/login", "/register", "/reset-password"];
 
+/** Nach dieser Zeit ohne Seitenaufruf wird die Sitzung beendet. */
+const IDLE_TIMEOUT_MS =
+  Number(process.env.SESSION_IDLE_TIMEOUT_MINUTES ?? 30) * 60_000;
+const LAST_SEEN_COOKIE = "fd-last-seen";
+const LAST_SEEN_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
 function matchesPath(pathname: string, paths: string[]) {
   return paths.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
@@ -51,6 +57,37 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+
+  // Automatische Abmeldung nach Inaktivität. Der Zeitstempel liegt in einem
+  // eigenen Cookie und wird bei jedem Request erneuert. Die Prüfung läuft
+  // serverseitig, damit sie sich nicht über den Browser aushebeln lässt.
+  if (user) {
+    const lastSeenRaw = request.cookies.get(LAST_SEEN_COOKIE)?.value;
+    const lastSeen = lastSeenRaw ? Number(lastSeenRaw) : null;
+    const now = Date.now();
+
+    if (lastSeen && Number.isFinite(lastSeen) && now - lastSeen > IDLE_TIMEOUT_MS) {
+      await supabase.auth.signOut();
+
+      const timeoutUrl = new URL("/login", request.url);
+      timeoutUrl.searchParams.set("grund", "inaktiv");
+      const response = NextResponse.redirect(timeoutUrl);
+      response.cookies.delete(LAST_SEEN_COOKIE);
+      return response;
+    }
+
+    supabaseResponse.cookies.set(LAST_SEEN_COOKIE, String(now), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      // Bewusst deutlich laenger als das Inaktivitaetsfenster: liefe der Cookie
+      // zeitgleich mit dem Timeout ab, waere der Zeitstempel beim Pruefen schon
+      // weg und die Abmeldung wuerde nie ausgeloest. Der Cookie enthaelt nur
+      // einen Zeitstempel, kein Geheimnis.
+      maxAge: LAST_SEEN_COOKIE_MAX_AGE_SECONDS,
+    });
+  }
 
   if (!user && !matchesPath(pathname, PUBLIC_PATHS)) {
     const redirectUrl = new URL("/login", request.url);

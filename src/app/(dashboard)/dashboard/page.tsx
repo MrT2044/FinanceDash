@@ -31,7 +31,7 @@ async function DashboardContent({ monthKey }: { monthKey?: string }) {
     return <EmptyState />;
   }
 
-  const kpis = computeKpis(data.transactions, data.monthKey);
+  const kpis = computeKpis(data.transactions, data.monthKey, data.balance);
   const series = buildMonthlySeries(data.transactions, lastMonths(data.monthKey, 6));
   const categorySummaries = buildCategorySummaries(data.transactions, data.categories, {
     monthKey: data.monthKey,

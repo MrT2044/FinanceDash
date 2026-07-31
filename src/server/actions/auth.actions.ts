@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp, logSecurityEvent } from "@/lib/security/audit-log";
+import { isRegistrationAllowed } from "@/lib/security/registration";
 import {
   loginSchema,
   passwordUpdateSchema,
@@ -91,6 +92,14 @@ export async function registerAction(
   if (!limit.success) {
     await logSecurityEvent("rate_limited", { detail: { action: "register" } });
     return { error: "Zu viele Registrierungsversuche. Bitte versuche es später erneut." };
+  }
+
+  if (!isRegistrationAllowed(parsed.data.email)) {
+    await logSecurityEvent("register_failed", { detail: { reason: "not_allowlisted" } });
+    return {
+      error:
+        "Für diese E-Mail-Adresse ist keine Registrierung freigeschaltet. Bitte wende dich an den Betreiber dieser Installation.",
+    };
   }
 
   const supabase = await createClient();

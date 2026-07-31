@@ -23,17 +23,24 @@ Auf [supabase.com](https://supabase.com) ein Projekt erstellen — **Region: `eu
 `.env.example` nach `.env.local` kopieren und ausfüllen. Die Werte stehen im
 Supabase-Dashboard unter *Project Settings → API*:
 
-| Variable | Pflicht | Quelle |
+| Variable | Pflicht | Quelle / Bedeutung |
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | ja | Supabase → API → Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ja | Supabase → API → anon public |
-| `SUPABASE_SERVICE_ROLE_KEY` | ja | Supabase → API → service_role (**niemals im Client verwenden**) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ja | Supabase → API Keys → publishable |
+| `SUPABASE_SERVICE_ROLE_KEY` | ja | Supabase → API Keys → secret (**niemals im Client verwenden**) |
+| `NEXT_PUBLIC_SITE_URL` | für Betrieb | Öffentliche Adresse ohne Schrägstrich am Ende. Bestimmt die Links in Bestätigungs- und Reset-Mails. Lokal `http://localhost:3000` |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | für Betrieb | [console.upstash.com](https://console.upstash.com) (kostenlos) |
+| `REGISTRATION_ALLOWLIST` | nein | Kommagetrennte E-Mail-Adressen. Gesetzt = nur diese dürfen sich registrieren |
+| `SESSION_IDLE_TIMEOUT_MINUTES` | nein | Automatische Abmeldung nach Inaktivität, Standard 30 |
 | `GEMINI_API_KEY` | nein | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (kostenlos) |
-| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | nein | [console.upstash.com](https://console.upstash.com) (kostenlos) |
 
-Ohne `GEMINI_API_KEY` läuft die Kategorisierung rein regelbasiert. Ohne Upstash greift
-ein In-Memory-Rate-Limit, das nur einen einzelnen Serverprozess schützt — für
-Produktion ist Upstash (oder ein Äquivalent) nötig.
+Ohne `GEMINI_API_KEY` läuft die Kategorisierung rein regelbasiert — alle übrigen
+Funktionen sind unberührt.
+
+**Upstash ist für den öffentlichen Betrieb wichtig.** Ohne die beiden Variablen
+greift nur ein In-Memory-Limit, das pro Serverprozess zählt. Auf serverlosen
+Plattformen wie Vercel läuft praktisch jede Anfrage in einer eigenen Instanz —
+der Brute-Force-Schutz beim Login wäre damit wirkungslos.
 
 ### 3. Datenbank migrieren
 

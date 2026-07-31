@@ -41,19 +41,17 @@ export function filterByMonth(
 }
 
 export function computeKpis(
-  allTransactions: TransactionRecord[],
+  windowTransactions: TransactionRecord[],
   monthKey: string,
+  /**
+   * Summe über alle Buchungen, nicht nur über das geladene Zeitfenster.
+   * Ohne Anfangssaldo aus der Bank ist das die bestmögliche Näherung.
+   */
+  balance: number,
 ): DashboardKpis {
-  const monthTransactions = filterByMonth(allTransactions, monthKey);
+  const monthTransactions = filterByMonth(windowTransactions, monthKey);
   const monthIncome = sumIncome(monthTransactions);
   const monthExpenses = sumExpenses(monthTransactions);
-
-  // Der Kontostand ergibt sich aus der Summe aller importierten Buchungen.
-  // Ohne Anfangssaldo aus der Bank ist das die bestmögliche Näherung.
-  const balance = allTransactions.reduce(
-    (total, transaction) => total + transaction.amount,
-    0,
-  );
 
   return {
     balance,

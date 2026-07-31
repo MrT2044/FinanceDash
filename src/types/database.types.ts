@@ -424,7 +424,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_balance: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
     }
     Enums: {
       bank_type:
