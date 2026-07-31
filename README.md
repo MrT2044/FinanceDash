@@ -70,7 +70,18 @@ Beide Wege legen Schema, RLS-Policies und die System-Kategorien an.
 Im Supabase-Dashboard unter *Authentication → URL Configuration* die Site-URL und
 `<deine-domain>/auth/callback` als Redirect-URL eintragen.
 
-### 5. Starten
+### 5. Konfiguration prüfen
+
+```bash
+npm run check:config
+```
+
+Testet die Werte gegen die echten Dienste: Sind die Schlüssel gültig, ist die
+E-Mail-Bestätigung aktiv, greift das Rate-Limiting? Das lohnt sich besonders vor
+einem Deployment — ein falscher Secret Key fällt im Betrieb sonst nicht auf, weil
+das Audit-Logging Fehler bewusst verschluckt.
+
+### 6. Starten
 
 ```bash
 npm install
