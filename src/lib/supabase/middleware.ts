@@ -67,12 +67,26 @@ export async function updateSession(request: NextRequest) {
     const now = Date.now();
 
     if (lastSeen && Number.isFinite(lastSeen) && now - lastSeen > IDLE_TIMEOUT_MS) {
+      // signOut() schreibt die geleerten Auth-Cookies in `supabaseResponse`.
       await supabase.auth.signOut();
 
       const timeoutUrl = new URL("/login", request.url);
       timeoutUrl.searchParams.set("grund", "inaktiv");
       const response = NextResponse.redirect(timeoutUrl);
-      response.cookies.delete(LAST_SEEN_COOKIE);
+
+      // Diese Cookies müssen mit umziehen, sonst bleibt die Session bestehen:
+      // Die Weiterleitung ginge dann auf /login, von dort sofort zurück aufs
+      // Dashboard (Nutzer gilt als angemeldet), dort erneut in den Timeout —
+      // eine Endlosschleife, aus der man sich nicht mehr anmelden konnte.
+      for (const cookie of supabaseResponse.cookies.getAll()) {
+        response.cookies.set(cookie);
+      }
+
+      // Ohne explizites `path` löscht Next.js nur für den aktuellen Pfad; der
+      // unter "/" gesetzte Zeitstempel überlebte und löste sofort den nächsten
+      // Timeout aus.
+      response.cookies.set(LAST_SEEN_COOKIE, "", { path: "/", maxAge: 0 });
+
       return response;
     }
 

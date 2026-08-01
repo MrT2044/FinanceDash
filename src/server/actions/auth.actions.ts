@@ -162,6 +162,45 @@ export async function requestPasswordResetAction(
   };
 }
 
+/**
+ * Verschickt die Bestätigungs-E-Mail erneut.
+ *
+ * Nötig, weil Bestätigungslinks einmalig sind: Manche Mail-Programme und
+ * Sicherheitsscanner rufen enthaltene Links automatisch ab und verbrauchen den
+ * Link dadurch, bevor der Empfänger ihn anklickt.
+ */
+export async function resendConfirmationAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = resetRequestSchema.safeParse({ email: formData.get("email") });
+
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  const ip = await getClientIp();
+  const limit = await checkRateLimit("passwordReset", ip);
+
+  if (limit.success) {
+    const supabase = await createClient();
+    const origin = await getOrigin();
+    await supabase.auth.resend({
+      type: "signup",
+      email: parsed.data.email,
+      options: { emailRedirectTo: `${origin}/auth/confirm` },
+    });
+  } else {
+    await logSecurityEvent("rate_limited", { detail: { action: "resend_confirmation" } });
+  }
+
+  // Wie beim Passwort-Reset bewusst immer dieselbe Antwort.
+  return {
+    success:
+      "Falls für diese Adresse eine Bestätigung aussteht, ist eine neue E-Mail unterwegs. Bitte öffne den Link direkt aus der E-Mail heraus.",
+  };
+}
+
 /** Setzt ein neues Passwort nach einem Reset-Link (Session stammt aus dem Link). */
 export async function updatePasswordAction(
   _prev: ActionState,

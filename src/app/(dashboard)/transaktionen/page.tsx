@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Amount } from "@/components/ui/amount";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -16,8 +18,9 @@ import { EmptyState } from "@/components/dashboard/empty-state";
 import { CategoryPicker } from "@/components/transactions/category-picker";
 import { loadDashboardData } from "@/lib/analytics/load";
 import { resolveMonthKey } from "@/lib/analytics/month";
-import { filterByMonth } from "@/lib/analytics/kpi";
+import { filterByMonth, sumExpenses, sumIncome } from "@/lib/analytics/kpi";
 import { formatDate } from "@/lib/utils/format";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Transaktionen — FinanceDash" };
 
@@ -28,15 +31,29 @@ const SOURCE_LABELS: Record<string, string> = {
   uncategorized: "Offen",
 };
 
+/** Umschalter zwischen allen Buchungen, nur Einnahmen und nur Ausgaben. */
+const KINDS = [
+  { value: undefined, label: "Alle" },
+  { value: "einnahmen", label: "Einnahmen" },
+  { value: "ausgaben", label: "Ausgaben" },
+] as const;
+
 export default async function TransactionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ monat?: string; kategorie?: string }>;
+  searchParams: Promise<{ monat?: string; kategorie?: string; art?: string }>;
 }) {
-  const { monat, kategorie } = await searchParams;
+  const { monat, kategorie, art } = await searchParams;
   const data = await loadDashboardData(await resolveMonthKey(monat));
 
   let transactions = filterByMonth(data.transactions, data.monthKey);
+
+  if (art === "einnahmen") {
+    transactions = transactions.filter((transaction) => transaction.amount > 0);
+  } else if (art === "ausgaben") {
+    transactions = transactions.filter((transaction) => transaction.amount < 0);
+  }
+
   if (kategorie === "keine") {
     transactions = transactions.filter((transaction) => transaction.category_id === null);
   } else if (kategorie) {
@@ -45,21 +62,66 @@ export default async function TransactionsPage({
     );
   }
 
+  // Neueste zuerst; bei gleichem Datum der größere Betrag oben.
+  transactions = [...transactions].sort(
+    (a, b) =>
+      b.booking_date.localeCompare(a.booking_date) ||
+      Math.abs(b.amount) - Math.abs(a.amount),
+  );
+
+  const accountById = new Map(data.accounts.map((account) => [account.id, account.name]));
+
   const uncategorizedCount = transactions.filter(
     (transaction) => transaction.category_id === null,
   ).length;
 
+  const total =
+    art === "einnahmen"
+      ? sumIncome(transactions)
+      : art === "ausgaben"
+        ? sumExpenses(transactions)
+        : null;
+
+  const title =
+    art === "einnahmen" ? "Einnahmen" : art === "ausgaben" ? "Ausgaben" : "Transaktionen";
+
+  const buildHref = (value?: string) => {
+    const params = new URLSearchParams();
+    params.set("monat", data.monthKey);
+    if (kategorie) params.set("kategorie", kategorie);
+    if (value) params.set("art", value);
+    return `/transaktionen?${params.toString()}`;
+  };
+
   return (
     <>
       <PageHeader
-        title="Transaktionen"
+        title={title}
         description={
-          uncategorizedCount
-            ? `${uncategorizedCount} ${uncategorizedCount === 1 ? "Buchung wartet" : "Buchungen warten"} noch auf eine Kategorie.`
-            : "Alle Buchungen des gewählten Monats."
+          total !== null
+            ? `${transactions.length} ${transactions.length === 1 ? "Buchung" : "Buchungen"} · insgesamt ${new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(total)}`
+            : uncategorizedCount
+              ? `${uncategorizedCount} ${uncategorizedCount === 1 ? "Buchung wartet" : "Buchungen warten"} noch auf eine Kategorie.`
+              : "Alle Buchungen des gewählten Monats."
         }
         action={<MonthPicker monthKey={data.monthKey} />}
       />
+
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {KINDS.map((kind) => (
+          <Link
+            key={kind.label}
+            href={buildHref(kind.value)}
+            className={cn(
+              buttonVariants({ variant: art === kind.value ? "secondary" : "ghost", size: "sm" }),
+              "h-9",
+            )}
+            aria-current={art === kind.value ? "page" : undefined}
+          >
+            {kind.label}
+          </Link>
+        ))}
+      </div>
 
       {!data.hasAnyTransactions ? (
         <EmptyState />
@@ -71,7 +133,7 @@ export default async function TransactionsPage({
       ) : (
         <div className="animate-rise">
           {/*
-            Unter 768px hat eine fünfspaltige Tabelle keinen Platz und erzwingt
+            Unter 768px hat eine sechsspaltige Tabelle keinen Platz und erzwingt
             seitliches Scrollen. Dort wird jede Buchung darum als Karte gezeigt.
           */}
           <ul className="space-y-2 md:hidden">
@@ -86,6 +148,9 @@ export default async function TransactionsPage({
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {formatDate(transaction.booking_date)}
+                          {accountById.get(transaction.account_id)
+                            ? ` · ${accountById.get(transaction.account_id)}`
+                            : ""}
                         </p>
                       </div>
                       <Amount
@@ -130,8 +195,9 @@ export default async function TransactionsPage({
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[6.5rem]">Datum</TableHead>
-                      <TableHead>Händler / Zweck</TableHead>
-                      <TableHead className="w-[12rem]">Kategorie</TableHead>
+                      <TableHead>Händler / Verwendungszweck</TableHead>
+                      <TableHead className="w-[11rem]">Kategorie</TableHead>
+                      <TableHead className="w-[9rem]">Konto</TableHead>
                       <TableHead className="w-[5.5rem]">Quelle</TableHead>
                       <TableHead className="w-[7.5rem] text-right">Betrag</TableHead>
                     </TableRow>
@@ -161,6 +227,9 @@ export default async function TransactionsPage({
                             categoryId={transaction.category_id}
                             categories={data.categories}
                           />
+                        </TableCell>
+                        <TableCell className="truncate text-xs text-muted-foreground">
+                          {accountById.get(transaction.account_id) ?? "—"}
                         </TableCell>
                         <TableCell>
                           <Badge

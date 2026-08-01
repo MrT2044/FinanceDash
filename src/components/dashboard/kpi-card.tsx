@@ -1,4 +1,6 @@
+import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -8,15 +10,18 @@ export function KpiCard({
   hint,
   icon: Icon,
   tone = "neutral",
+  href,
 }: {
   label: string;
   value: string;
   hint?: string;
   icon: LucideIcon;
   tone?: "neutral" | "positive" | "negative";
+  /** Ist ein Ziel gesetzt, wird die ganze Karte zur Schaltfläche. */
+  href?: string;
 }) {
-  return (
-    <Card className="card-elevated">
+  const card = (
+    <Card className={cn("card-elevated h-full", href && "hover:border-primary/30")}>
       <CardContent className="flex items-start justify-between gap-3 p-5">
         <div className="min-w-0 space-y-1">
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -31,7 +36,12 @@ export function KpiCard({
           >
             {value}
           </p>
-          {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+          {hint ? (
+            <p className="flex items-center gap-0.5 text-xs text-muted-foreground">
+              {hint}
+              {href ? <ChevronRight className="size-3" /> : null}
+            </p>
+          ) : null}
         </div>
         <span
           className={cn(
@@ -45,5 +55,17 @@ export function KpiCard({
         </span>
       </CardContent>
     </Card>
+  );
+
+  if (!href) return card;
+
+  return (
+    <Link
+      href={href}
+      className="block rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      aria-label={`${label}: ${value} — Buchungen ansehen`}
+    >
+      {card}
+    </Link>
   );
 }

@@ -3,11 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { addMonths, currentMonthKey, lastMonths, monthEnd, monthStart } from "@/lib/utils/date";
 import type { CategoryMeta, TransactionRecord } from "./types";
 
+export type AccountMeta = { id: string; name: string };
+
 export type DashboardData = {
   monthKey: string;
   monthKeys: string[];
   transactions: TransactionRecord[];
   categories: CategoryMeta[];
+  accounts: AccountMeta[];
   hasAnyTransactions: boolean;
   /** Saldo über alle Buchungen, unabhängig vom geladenen Zeitfenster. */
   balance: number;
@@ -28,8 +31,13 @@ export async function loadDashboardData(monthKeyParam?: string): Promise<Dashboa
 
   const monthKeys = lastMonths(monthKey, HISTORY_WINDOW);
 
-  const [{ data: transactions }, { data: categories }, { count }, { data: balance }] =
-    await Promise.all([
+  const [
+    { data: transactions },
+    { data: categories },
+    { data: accounts },
+    { count },
+    { data: balance },
+  ] = await Promise.all([
       supabase
         .from("transactions")
         .select(
@@ -39,6 +47,7 @@ export async function loadDashboardData(monthKeyParam?: string): Promise<Dashboa
         .lte("booking_date", monthEnd(monthKey))
         .order("booking_date", { ascending: false }),
       supabase.from("categories").select("id, name, slug, color, icon").order("sort_order"),
+      supabase.from("accounts").select("id, name").order("name"),
       supabase.from("transactions").select("id", { count: "exact", head: true }),
       // Summiert in der Datenbank über alle Buchungen, nicht nur über das Fenster.
       supabase.rpc("current_balance"),
@@ -49,6 +58,7 @@ export async function loadDashboardData(monthKeyParam?: string): Promise<Dashboa
     monthKeys,
     transactions: transactions ?? [],
     categories: categories ?? [],
+    accounts: accounts ?? [],
     hasAnyTransactions: (count ?? 0) > 0,
     balance: Number(balance ?? 0),
   };

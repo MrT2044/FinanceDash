@@ -61,16 +61,18 @@ async function DashboardContent({ monthKey }: { monthKey: string }) {
         <KpiCard
           label="Einnahmen"
           value={formatCurrency(kpis.monthIncome)}
-          hint="in diesem Monat"
+          hint="Alle Einnahmen ansehen"
           icon={TrendingUp}
           tone="positive"
+          href={`/transaktionen?art=einnahmen&monat=${data.monthKey}`}
         />
         <KpiCard
           label="Ausgaben"
           value={formatCurrency(kpis.monthExpenses)}
-          hint="in diesem Monat"
+          hint="Alle Ausgaben ansehen"
           icon={TrendingDown}
           tone="negative"
+          href={`/transaktionen?art=ausgaben&monat=${data.monthKey}`}
         />
         <KpiCard
           label="Sparrate"

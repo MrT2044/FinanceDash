@@ -39,11 +39,30 @@ export function ErrorView({
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
 
-      {/* Die Kennung hilft beim Zuordnen im Server-Log, verrät aber nichts. */}
-      {error.digest ? (
-        <p className="font-mono text-xs text-muted-foreground">
-          Fehlerkennung: {error.digest}
-        </p>
+      {/*
+        Die eigentliche Fehlermeldung wird angezeigt, nicht verschluckt — ohne
+        sie ist von außen nicht zu erkennen, was schiefging. Bei Fehlern aus dem
+        Server-Rendern liefert Next.js in der Produktion bewusst nur die
+        `digest`-Kennung; die passende Meldung steht dann im Server-Log.
+      */}
+      {error.message || error.digest ? (
+        <details className="w-full text-left">
+          <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+            Technische Details
+          </summary>
+          <div className="mt-2 space-y-1 rounded-lg bg-muted p-3">
+            {error.message ? (
+              <p className="font-mono text-xs break-words text-foreground">
+                {error.message}
+              </p>
+            ) : null}
+            {error.digest ? (
+              <p className="font-mono text-xs text-muted-foreground">
+                Kennung: {error.digest}
+              </p>
+            ) : null}
+          </div>
+        </details>
       ) : null}
 
       <div className="flex flex-wrap items-center justify-center gap-2">

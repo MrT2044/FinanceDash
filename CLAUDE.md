@@ -169,6 +169,14 @@ Persistiert statt live berechnet, damit Nutzer sie ausblenden können. Ein
 
 ## Oberfläche
 
+`src/components/ui/dropdown-menu.tsx` ist **keine** Base-UI-Komponente mehr,
+sondern eine eigene Umsetzung. Das Menü aus `@base-ui/react` riss beim Öffnen die
+ganze Seite in die Fehlergrenze. Die Nachbildung kommt ohne Floating-UI und ohne
+`requestAnimationFrame` aus und positioniert per `getBoundingClientRect` direkt am
+DOM-Knoten — ohne React-State, damit kein zusätzlicher Renderdurchlauf entsteht.
+Dialog, Sheet und Tooltip stammen weiterhin aus Base UI und sind unauffällig.
+
+
 Farben, Abstände und Schatten kommen ausschließlich aus den Tokens in
 `globals.css`; feste Farbwerte wie `text-emerald-600` gehören nicht in
 Komponenten. Für Geldbeträge gibt es `src/components/ui/amount.tsx` als einzige

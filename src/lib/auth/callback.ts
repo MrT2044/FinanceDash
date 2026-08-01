@@ -60,7 +60,7 @@ export async function handleAuthCallback(request: NextRequest) {
 
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
-    if (error) return failure(origin, "link_ungueltig");
+    if (error) return failure(origin, error.code ?? "link_ungueltig", error.message);
 
     await logSecurityEvent("email_verified", { detail: { type } });
     return NextResponse.redirect(`${origin}${next}`);
@@ -68,7 +68,17 @@ export async function handleAuthCallback(request: NextRequest) {
 
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return failure(origin, "link_ungueltig");
+    if (error) {
+      // Häufigster Fall hier ist nicht ein abgelaufener Link, sondern ein
+      // fehlender Code-Verifier: Der liegt als Cookie im Browser, in dem die
+      // Registrierung lief. Wird die E-Mail auf einem anderen Gerät oder in
+      // einem anderen Browser geöffnet, schlägt der Tausch fehl, obwohl der
+      // Link gültig ist. Deshalb wird hier unterschieden.
+      const reason = /verifier|code challenge|pkce/i.test(error.message)
+        ? "anderes_geraet"
+        : (error.code ?? "link_ungueltig");
+      return failure(origin, reason, error.message);
+    }
 
     await logSecurityEvent("email_verified", { detail: { type: type ?? "code" } });
     return NextResponse.redirect(`${origin}${next}`);
@@ -79,8 +89,11 @@ export async function handleAuthCallback(request: NextRequest) {
   return failure(origin, "kein_token");
 }
 
-function failure(origin: string, reason: string) {
+function failure(origin: string, reason: string, detail?: string) {
   const url = new URL("/auth/fehler", origin);
   url.searchParams.set("grund", reason);
+  // Die Originalmeldung von Supabase ist generisch und enthält keine Geheimnisse;
+  // ohne sie ist von außen nicht zu unterscheiden, woran der Link scheiterte.
+  if (detail) url.searchParams.set("detail", detail.slice(0, 200));
   return NextResponse.redirect(url);
 }
