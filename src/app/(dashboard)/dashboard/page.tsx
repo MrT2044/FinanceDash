@@ -19,12 +19,13 @@ import {
   filterByMonth,
 } from "@/lib/analytics/kpi";
 import { createClient } from "@/lib/supabase/server";
+import { resolveMonthKey } from "@/lib/analytics/month";
 import { addMonths, lastMonths } from "@/lib/utils/date";
 import { formatCurrency, formatPercent } from "@/lib/utils/format";
 
 export const metadata: Metadata = { title: "Übersicht — FinanceDash" };
 
-async function DashboardContent({ monthKey }: { monthKey?: string }) {
+async function DashboardContent({ monthKey }: { monthKey: string }) {
   const data = await loadDashboardData(monthKey);
 
   if (!data.hasAnyTransactions) {
@@ -48,7 +49,7 @@ async function DashboardContent({ monthKey }: { monthKey?: string }) {
     .limit(3);
 
   return (
-    <div className="space-y-6">
+    <div className="animate-rise space-y-4 md:space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Kontostand"
@@ -92,18 +93,18 @@ async function DashboardContent({ monthKey }: { monthKey?: string }) {
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-5">
-        <Card className="border-border/60 lg:col-span-3">
+        <Card className="card-elevated lg:col-span-3">
           <CardHeader>
-            <CardTitle className="text-base">Einnahmen &amp; Ausgaben</CardTitle>
+            <CardTitle>Einnahmen &amp; Ausgaben</CardTitle>
           </CardHeader>
           <CardContent className="pl-0">
             <IncomeExpenseChart data={series} />
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 lg:col-span-2">
+        <Card className="card-elevated lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Ausgaben nach Kategorie</CardTitle>
+            <CardTitle>Ausgaben nach Kategorie</CardTitle>
           </CardHeader>
           <CardContent>
             {categorySummaries.length ? (
@@ -147,16 +148,19 @@ export default async function DashboardPage({
   searchParams: Promise<{ monat?: string }>;
 }) {
   const { monat } = await searchParams;
+  const monthKey = await resolveMonthKey(monat);
 
   return (
     <>
       <PageHeader
         title="Übersicht"
         description="Deine Finanzen auf einen Blick."
-        action={<MonthPicker monthKey={monat ?? new Date().toISOString().slice(0, 7)} />}
+        action={<MonthPicker monthKey={monthKey} />}
       />
-      <Suspense fallback={<DashboardSkeleton />}>
-        <DashboardContent monthKey={monat} />
+      {/* Der Monat gehört in den Schlüssel: sonst bleibt beim Wechsel der alte
+          Inhalt stehen, statt kurz das Skelett zu zeigen. */}
+      <Suspense key={monthKey} fallback={<DashboardSkeleton />}>
+        <DashboardContent monthKey={monthKey} />
       </Suspense>
     </>
   );

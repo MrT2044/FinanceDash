@@ -26,8 +26,8 @@ export function FormAlert({
       role={isError ? "alert" : "status"}
       className={
         isError
-          ? "flex gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
-          : "flex gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400"
+          ? "flex gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+          : "flex gap-2 rounded-xl border border-positive/30 bg-positive/10 p-3 text-sm text-positive"
       }
     >
       <Icon className="mt-0.5 size-4 shrink-0" />

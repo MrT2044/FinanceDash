@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { MonthPicker } from "@/components/dashboard/month-picker";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { loadDashboardData } from "@/lib/analytics/load";
+import { resolveMonthKey } from "@/lib/analytics/month";
 import { buildCategorySummaries } from "@/lib/analytics/kpi";
 import { addMonths, lastMonths } from "@/lib/utils/date";
 import { formatCurrency, formatPercent, formatSignedPercent } from "@/lib/utils/format";
@@ -19,7 +20,7 @@ export default async function CategoriesPage({
   searchParams: Promise<{ monat?: string }>;
 }) {
   const { monat } = await searchParams;
-  const data = await loadDashboardData(monat);
+  const data = await loadDashboardData(await resolveMonthKey(monat));
 
   const summaries = buildCategorySummaries(data.transactions, data.categories, {
     monthKey: data.monthKey,
@@ -42,7 +43,7 @@ export default async function CategoriesPage({
           description="Wähle einen anderen Monat oder importiere weitere Umsätze."
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid animate-rise gap-4 md:grid-cols-2">
           {summaries.map((summary) => {
             // Sparpotenzial = Mehrausgabe gegenüber dem eigenen Durchschnitt.
             const potential = summary.averagePrevious
@@ -50,7 +51,7 @@ export default async function CategoriesPage({
               : 0;
 
             return (
-              <Card key={summary.slug} className="border-border/60">
+              <Card key={summary.slug} className="card-elevated">
                 <CardContent className="space-y-3 p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2.5">
@@ -83,12 +84,13 @@ export default async function CategoriesPage({
                       <dd
                         className={cn(
                           "mt-0.5 font-medium tabular-nums",
+                          // Mehr ausgegeben als sonst = rot, weniger = grün.
                           summary.changeRatio !== null &&
                             summary.changeRatio > 0.05 &&
-                            "text-rose-600 dark:text-rose-400",
+                            "text-negative",
                           summary.changeRatio !== null &&
                             summary.changeRatio < -0.05 &&
-                            "text-emerald-600 dark:text-emerald-400",
+                            "text-positive",
                         )}
                       >
                         {summary.changeRatio === null

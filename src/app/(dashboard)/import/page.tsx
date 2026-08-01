@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { ImportForm } from "@/components/import/import-form";
@@ -35,7 +35,7 @@ export default async function ImportPage() {
         description="Lade den CSV-Export aus deinem Online-Banking hoch."
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid animate-rise gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <ImportForm
             accounts={accounts ?? []}
@@ -44,9 +44,9 @@ export default async function ImportPage() {
         </div>
 
         <div className="space-y-4">
-          <Card className="border-border/60">
+          <Card className="card-elevated">
             <CardHeader>
-              <CardTitle className="text-base">Unterstützte Formate</CardTitle>
+              <CardTitle>Unterstützte Formate</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <ul className="space-y-1.5 text-sm text-muted-foreground">
@@ -62,9 +62,9 @@ export default async function ImportPage() {
           </Card>
 
           {batches?.length ? (
-            <Card className="border-border/60">
+            <Card className="card-elevated">
               <CardHeader>
-                <CardTitle className="text-base">Letzte Importe</CardTitle>
+                <CardTitle>Letzte Importe</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3">

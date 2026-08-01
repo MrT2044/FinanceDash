@@ -55,7 +55,14 @@ Request-Pfad wandern.
 
 Mutationen laufen über Server Actions in `src/server/actions/*.actions.ts` (CSRF-sicher
 by design). Route Handler gibt es nur dort, wo es nötig ist: `/api/export` (Datei-Download)
-und `/auth/callback`.
+sowie `/auth/callback` und `/auth/confirm`.
+
+**Server Actions dürfen nicht werfen.** Wird eine Action aus `startTransition`
+aufgerufen, landet eine Ausnahme in der nächsten Fehlergrenze und ersetzt die
+ganze Seite. Erwartbare Fehler kommen deshalb als Rückgabewert zurück
+(`{ ok: false, error }` bzw. `ActionState`), nicht als `throw`. Ausgenommen ist
+`redirect()`, das intern über eine Ausnahme funktioniert und außerhalb von
+`try`/`catch` stehen muss.
 
 `src/lib/security/audit-log.ts` schluckt Fehler bewusst — ein defektes Audit-Log darf
 keinen Request scheitern lassen. Nebenwirkung: Ein ungültiger Service-Role-Key fällt
@@ -67,6 +74,10 @@ im Betrieb nicht auf. Dafür gibt es `npm run check:config`.
   Sie delegiert an `updateSession()` in `src/lib/supabase/middleware.ts`, wo
   Session-Erneuerung, Route-Schutz und die Inaktivitäts-Abmeldung liegen.
 - Die Vitest-Konfiguration ist `vitest.config.mts` (nicht `.ts`).
+- Fehlergrenzen bekommen `unstable_retry` statt `reset` als zweite Prop
+  (`src/app/error.tsx`, `src/app/(dashboard)/error.tsx`, `src/app/global-error.tsx`).
+  Ohne diese Dateien ersetzt Next.js jeden unbehandelten Fehler durch seinen
+  eigenen Platzhalter „This page couldn't load“ — ohne Meldung und ohne Weg zurück.
 
 ## Datenbank und Migrationen
 
@@ -123,7 +134,30 @@ Der KI-Teil liegt hinter dem Interface `CategorizationProvider` in
 anderer Anbieter ersetzt nur diese Implementierung; Regelwerk und Schema bleiben
 unberührt.
 
+## Anmeldung und E-Mail-Links
+
+Bestätigungs- und Reset-Links laufen über `/auth/confirm` (`token_hash` + `type`,
+ausgewertet mit `verifyOtp`). Das funktioniert auch, wenn der Link auf einem
+anderen Gerät geöffnet wird — anders als `exchangeCodeForSession`, das den im
+Browser hinterlegten PKCE-Verifier braucht. `/auth/callback` bleibt für OAuth und
+ältere Links bestehen; beide teilen sich `src/lib/auth/callback.ts`.
+
+Schlägt etwas fehl, landet man auf `/auth/fehler` mit einer Erklärung. Dort
+prüft `FragmentSessionRecovery` zusätzlich das URL-Fragment: Liefert Supabase die
+Session als `#access_token=…`, sieht der Server sie nicht, und der Baustein
+schließt die Anmeldung im Browser nach.
+
+Die E-Mail-Vorlagen liegen unter `supabase/templates/` und sind in
+`config.toml` eingetragen. **Die CLI überträgt sie nicht ins gehostete Projekt** —
+dort müssen sie unter Authentication → Emails eingefügt werden.
+
 ## Auswertungen
+
+Der gewählte Monat steht im Cookie `fd-monat` und wird über
+`resolveMonthKey()` (`src/lib/analytics/month.ts`) aufgelöst: `?monat=` in der URL
+gewinnt, danach das Cookie, sonst der laufende Monat. Dadurch übernehmen alle
+Bereiche denselben Zeitraum, auch wenn man sie ohne Parameter über die Navigation
+aufruft. Neue Auswertungsseiten sollten den Monat ebenso auflösen.
 
 `src/lib/analytics/load.ts` lädt bewusst nur ein 12-Monats-Fenster. Der Kontostand
 darf deshalb **nicht** aus diesen Zeilen summiert werden — dafür gibt es die
@@ -132,6 +166,19 @@ Datenbankfunktion `current_balance()`, die den gesamten Bestand abdeckt.
 `insights-engine.ts` erzeugt Empfehlungen und schreibt sie nach `recommendations`.
 Persistiert statt live berechnet, damit Nutzer sie ausblenden können. Ein
 `fingerprint` mit Unique-Index verhindert Dubletten beim Neuberechnen.
+
+## Oberfläche
+
+Farben, Abstände und Schatten kommen ausschließlich aus den Tokens in
+`globals.css`; feste Farbwerte wie `text-emerald-600` gehören nicht in
+Komponenten. Für Geldbeträge gibt es `src/components/ui/amount.tsx` als einzige
+Stelle, die über die Vorzeichenfarbe entscheidet (`--positive` / `--negative`).
+Kategoriefarben stammen weiterhin aus der Datenbank und werden inline gesetzt.
+
+Karten tragen `card-elevated` (weicher Schatten, leichtes Anheben im Hover).
+Eingabefelder sind auf Smartphones mindestens 44px hoch und 16px groß — kleinere
+Schrift löst auf iOS ein automatisches Zoomen aus, das die Seite verschiebt.
+Pinch-Zoom bleibt bewusst erlaubt.
 
 ## Tests
 

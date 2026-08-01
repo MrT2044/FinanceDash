@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
@@ -27,9 +27,9 @@ export function ImportForm({
   if (state.result) {
     const { result } = state;
     return (
-      <Card className="border-border/60">
+      <Card className="card-elevated">
         <CardContent className="space-y-4 p-6">
-          <div className="flex items-center gap-2.5 text-emerald-600 dark:text-emerald-400">
+          <div className="flex items-center gap-2.5 text-positive">
             <CheckCircle2 className="size-5" />
             <h2 className="text-base font-semibold">Import abgeschlossen</h2>
           </div>
@@ -74,7 +74,7 @@ export function ImportForm({
     <form action={formAction} className="space-y-5">
       <FormAlert error={state.error} />
 
-      <Card className="border-border/60">
+      <Card className="card-elevated">
         <CardContent className="space-y-5 p-6">
           <div className="space-y-2">
             <Label htmlFor="file">CSV-Datei</Label>

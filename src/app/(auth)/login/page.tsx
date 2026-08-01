@@ -8,9 +8,9 @@ export const metadata: Metadata = { title: "Anmelden — FinanceDash" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ redirectTo?: string; grund?: string }>;
+  searchParams: Promise<{ redirectTo?: string; grund?: string; abgemeldet?: string }>;
 }) {
-  const { redirectTo, grund } = await searchParams;
+  const { redirectTo, grund, abgemeldet } = await searchParams;
 
   return (
     <AuthShell
@@ -18,7 +18,9 @@ export default async function LoginPage({
       description={
         grund === "inaktiv"
           ? "Du wurdest wegen Inaktivität abgemeldet. Bitte melde dich erneut an."
-          : "Melde dich an, um deine Finanzen im Blick zu behalten."
+          : abgemeldet
+            ? "Du bist abgemeldet. Deine Daten bleiben gespeichert."
+            : "Melde dich an, um deine Finanzen im Blick zu behalten."
       }
       footer={
         <>

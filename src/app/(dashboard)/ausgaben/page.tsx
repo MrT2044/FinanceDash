@@ -1,11 +1,13 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Amount } from "@/components/ui/amount";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { MonthPicker } from "@/components/dashboard/month-picker";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { CategoryPieChart } from "@/components/charts/category-pie-chart";
 import { loadDashboardData } from "@/lib/analytics/load";
+import { resolveMonthKey } from "@/lib/analytics/month";
 import {
   buildCategorySummaries,
   buildMonthlySeries,
@@ -24,7 +26,7 @@ export default async function ExpensesPage({
   searchParams: Promise<{ monat?: string }>;
 }) {
   const { monat } = await searchParams;
-  const data = await loadDashboardData(monat);
+  const data = await loadDashboardData(await resolveMonthKey(monat));
 
   const series = buildMonthlySeries(data.transactions, lastMonths(data.monthKey, 12));
   const monthTransactions = filterByMonth(data.transactions, data.monthKey);
@@ -51,16 +53,18 @@ export default async function ExpensesPage({
       {!data.hasAnyTransactions ? (
         <EmptyState />
       ) : (
-        <div className="space-y-6">
+        <div className="animate-rise space-y-4 md:space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Card className="border-border/60">
+            <Card className="card-elevated">
               <CardContent className="space-y-1 p-5">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Ausgaben {formatMonth(data.monthKey)}
                 </p>
-                <p className="text-2xl font-semibold tabular-nums tracking-tight">
-                  {formatCurrency(currentTotal)}
-                </p>
+                <Amount
+                  value={currentTotal}
+                  tone="expense"
+                  className="block text-2xl font-semibold tracking-tight"
+                />
                 {changeRatio !== null ? (
                   <p className="text-xs text-muted-foreground">
                     {formatSignedPercent(changeRatio)} gegenüber dem Vormonat (
@@ -70,7 +74,7 @@ export default async function ExpensesPage({
               </CardContent>
             </Card>
 
-            <Card className="border-border/60">
+            <Card className="card-elevated">
               <CardContent className="space-y-1 p-5">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Größte Kategorie
@@ -87,9 +91,9 @@ export default async function ExpensesPage({
             </Card>
           </div>
 
-          <Card className="border-border/60">
+          <Card className="card-elevated">
             <CardHeader>
-              <CardTitle className="text-base">Ausgabenverlauf</CardTitle>
+              <CardTitle>Ausgabenverlauf</CardTitle>
             </CardHeader>
             <CardContent className="pl-0">
               <TrendChart data={series} metric="expenses" color="#f43f5e" label="Ausgaben" />
@@ -97,9 +101,9 @@ export default async function ExpensesPage({
           </Card>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="border-border/60">
+            <Card className="card-elevated">
               <CardHeader>
-                <CardTitle className="text-base">Verteilung nach Kategorie</CardTitle>
+                <CardTitle>Verteilung nach Kategorie</CardTitle>
               </CardHeader>
               <CardContent>
                 {categorySummaries.length ? (
@@ -112,9 +116,9 @@ export default async function ExpensesPage({
               </CardContent>
             </Card>
 
-            <Card className="border-border/60">
+            <Card className="card-elevated">
               <CardHeader>
-                <CardTitle className="text-base">Größte Ausgabenquellen</CardTitle>
+                <CardTitle>Größte Ausgabenquellen</CardTitle>
               </CardHeader>
               <CardContent>
                 {merchants.length ? (

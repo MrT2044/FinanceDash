@@ -10,6 +10,8 @@ export type SecurityEventType =
   | "register_success"
   | "register_failed"
   | "logout"
+  | "email_verified"
+  | "email_change_requested"
   | "password_reset_requested"
   | "password_changed"
   | "rate_limited"

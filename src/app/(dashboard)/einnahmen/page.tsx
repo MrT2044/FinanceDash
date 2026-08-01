@@ -1,10 +1,12 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Amount } from "@/components/ui/amount";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { MonthPicker } from "@/components/dashboard/month-picker";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { TrendChart } from "@/components/charts/trend-chart";
 import { loadDashboardData } from "@/lib/analytics/load";
+import { resolveMonthKey } from "@/lib/analytics/month";
 import { buildMonthlySeries, filterByMonth, sumIncome } from "@/lib/analytics/kpi";
 import { addMonths, lastMonths } from "@/lib/utils/date";
 import { formatCurrency, formatMonth, formatSignedPercent } from "@/lib/utils/format";
@@ -37,7 +39,7 @@ export default async function IncomePage({
   searchParams: Promise<{ monat?: string }>;
 }) {
   const { monat } = await searchParams;
-  const data = await loadDashboardData(monat);
+  const data = await loadDashboardData(await resolveMonthKey(monat));
 
   const series = buildMonthlySeries(data.transactions, lastMonths(data.monthKey, 12));
   const monthTransactions = filterByMonth(data.transactions, data.monthKey);
@@ -59,16 +61,18 @@ export default async function IncomePage({
       {!data.hasAnyTransactions ? (
         <EmptyState />
       ) : (
-        <div className="space-y-6">
+        <div className="animate-rise space-y-4 md:space-y-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Card className="border-border/60">
+            <Card className="card-elevated">
               <CardContent className="space-y-1 p-5">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Einnahmen {formatMonth(data.monthKey)}
                 </p>
-                <p className="text-2xl font-semibold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency(currentTotal)}
-                </p>
+                <Amount
+                  value={currentTotal}
+                  tone="income"
+                  className="block text-2xl font-semibold tracking-tight"
+                />
                 {changeRatio !== null ? (
                   <p className="text-xs text-muted-foreground">
                     {formatSignedPercent(changeRatio)} gegenüber dem Vormonat (
@@ -78,7 +82,7 @@ export default async function IncomePage({
               </CardContent>
             </Card>
 
-            <Card className="border-border/60">
+            <Card className="card-elevated">
               <CardContent className="space-y-1 p-5">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Wichtigste Quelle
@@ -95,18 +99,18 @@ export default async function IncomePage({
             </Card>
           </div>
 
-          <Card className="border-border/60">
+          <Card className="card-elevated">
             <CardHeader>
-              <CardTitle className="text-base">Entwicklung über die Zeit</CardTitle>
+              <CardTitle>Entwicklung über die Zeit</CardTitle>
             </CardHeader>
             <CardContent className="pl-0">
               <TrendChart data={series} metric="income" color="#10b981" label="Einnahmen" />
             </CardContent>
           </Card>
 
-          <Card className="border-border/60">
+          <Card className="card-elevated">
             <CardHeader>
-              <CardTitle className="text-base">Einnahmequellen</CardTitle>
+              <CardTitle>Einnahmequellen</CardTitle>
             </CardHeader>
             <CardContent>
               {sources.length ? (

@@ -60,7 +60,25 @@ export const passwordUpdateSchema = z
     path: ["passwordConfirm"],
   });
 
+/** Passwortwechsel im angemeldeten Zustand — mit Prüfung des alten Passworts. */
+export const passwordChangeSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Bitte gib dein aktuelles Passwort ein.").max(128),
+    password: passwordSchema,
+    passwordConfirm: z.string(),
+  })
+  .refine((data) => data.password === data.passwordConfirm, {
+    message: "Die Passwörter stimmen nicht überein.",
+    path: ["passwordConfirm"],
+  });
+
+export const emailChangeSchema = z.object({
+  email: emailSchema,
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type ResetRequestInput = z.infer<typeof resetRequestSchema>;
 export type PasswordUpdateInput = z.infer<typeof passwordUpdateSchema>;
+export type PasswordChangeInput = z.infer<typeof passwordChangeSchema>;
+export type EmailChangeInput = z.infer<typeof emailChangeSchema>;

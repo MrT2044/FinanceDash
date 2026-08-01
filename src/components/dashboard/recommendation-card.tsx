@@ -1,4 +1,4 @@
-import { AlertTriangle, Lightbulb } from "lucide-react";
+﻿import { AlertTriangle, Lightbulb } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { DismissRecommendationButton } from "./dismiss-recommendation-button";
 
@@ -20,7 +20,7 @@ export function RecommendationCard({
   const Icon = isWarning ? AlertTriangle : Lightbulb;
 
   return (
-    <Card className="border-border/60">
+    <Card className="card-elevated">
       <CardContent className="flex gap-3 p-5">
         <span
           className={

@@ -108,13 +108,6 @@ async function main() {
     );
   }
 
-  if (env.REGISTRATION_ALLOWLIST) {
-    const anzahl = env.REGISTRATION_ALLOWLIST.split(",").filter((e) => e.trim()).length;
-    ok(`Registrierung auf ${anzahl} Adresse(n) begrenzt`);
-  } else {
-    warn("REGISTRATION_ALLOWLIST leer — jeder mit der Adresse kann ein Konto anlegen");
-  }
-
   ok(`Automatische Abmeldung nach ${env.SESSION_IDLE_TIMEOUT_MINUTES ?? 30} Minuten`);
   if (!env.GEMINI_API_KEY) ok("Kategorisierung laeuft rein regelbasiert (KI optional)");
 

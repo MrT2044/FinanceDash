@@ -2,12 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp, logSecurityEvent } from "@/lib/security/audit-log";
-import { isRegistrationAllowed } from "@/lib/security/registration";
 import {
+  emailChangeSchema,
   loginSchema,
+  passwordChangeSchema,
   passwordUpdateSchema,
   registerSchema,
   resetRequestSchema,
@@ -63,6 +65,16 @@ export async function loginAction(
 
   if (error) {
     await logSecurityEvent("login_failed", { detail: { reason: error.name } });
+
+    // Einzige Ausnahme von der generischen Meldung: Ohne diesen Hinweis sucht
+    // man den Fehler beim Passwort, obwohl nur die Bestätigung fehlt.
+    if (error.code === "email_not_confirmed") {
+      return {
+        error:
+          "Deine E-Mail-Adresse ist noch nicht bestätigt. Bitte öffne den Link aus der Bestätigungs-E-Mail.",
+      };
+    }
+
     // Bewusst generische Meldung: verrät nicht, ob die E-Mail registriert ist.
     return { error: "E-Mail-Adresse oder Passwort ist falsch." };
   }
@@ -94,21 +106,13 @@ export async function registerAction(
     return { error: "Zu viele Registrierungsversuche. Bitte versuche es später erneut." };
   }
 
-  if (!isRegistrationAllowed(parsed.data.email)) {
-    await logSecurityEvent("register_failed", { detail: { reason: "not_allowlisted" } });
-    return {
-      error:
-        "Für diese E-Mail-Adresse ist keine Registrierung freigeschaltet. Bitte wende dich an den Betreiber dieser Installation.",
-    };
-  }
-
   const supabase = await createClient();
   const origin = await getOrigin();
   const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      emailRedirectTo: `${origin}/auth/confirm`,
       data: parsed.data.displayName
         ? { display_name: parsed.data.displayName }
         : undefined,
@@ -144,7 +148,7 @@ export async function requestPasswordResetAction(
     const supabase = await createClient();
     const origin = await getOrigin();
     await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-      redirectTo: `${origin}/auth/callback?next=/passwort-aendern`,
+      redirectTo: `${origin}/auth/confirm?next=/passwort-aendern`,
     });
     await logSecurityEvent("password_reset_requested");
   } else {
@@ -158,6 +162,7 @@ export async function requestPasswordResetAction(
   };
 }
 
+/** Setzt ein neues Passwort nach einem Reset-Link (Session stammt aus dem Link). */
 export async function updatePasswordAction(
   _prev: ActionState,
   formData: FormData,
@@ -192,13 +197,127 @@ export async function updatePasswordAction(
   redirect("/dashboard");
 }
 
-export async function logoutAction() {
+/**
+ * Passwortwechsel im angemeldeten Zustand. Das aktuelle Passwort wird zuvor
+ * geprüft — sonst könnte jemand an einem unbeaufsichtigten Gerät das Konto
+ * übernehmen, ohne das alte Passwort zu kennen.
+ */
+export async function changePasswordAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = passwordChangeSchema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+    password: formData.get("password"),
+    passwordConfirm: formData.get("passwordConfirm"),
+  });
+
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  await supabase.auth.signOut();
-  await logSecurityEvent("logout", { userId: user?.id });
-  redirect("/login");
+  if (!user?.email) return { error: "Bitte melde dich erneut an." };
+
+  const ip = await getClientIp();
+  const limit = await checkRateLimit("login", `${ip}:${user.email}`);
+  if (!limit.success) {
+    await logSecurityEvent("rate_limited", { detail: { action: "password_change" } });
+    return { error: "Zu viele Versuche. Bitte warte einen Moment." };
+  }
+
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: parsed.data.currentPassword,
+  });
+
+  if (reauthError) {
+    return { fieldErrors: { currentPassword: ["Das aktuelle Passwort ist falsch."] } };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+
+  if (error) {
+    return {
+      error:
+        error.code === "same_password"
+          ? "Das neue Passwort muss sich vom bisherigen unterscheiden."
+          : "Das Passwort konnte nicht geändert werden. Bitte versuche es erneut.",
+    };
+  }
+
+  await logSecurityEvent("password_changed", { userId: user.id });
+  return { success: "Dein Passwort wurde geändert." };
+}
+
+/**
+ * Ändert die Anmelde-E-Mail. Supabase verschickt einen Bestätigungslink an die
+ * neue (und je nach Projekteinstellung auch an die alte) Adresse; erst danach
+ * greift die Änderung.
+ */
+export async function changeEmailAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = emailChangeSchema.safeParse({ email: formData.get("email") });
+
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Bitte melde dich erneut an." };
+
+  if (user.email?.toLowerCase() === parsed.data.email) {
+    return { error: "Das ist bereits deine aktuelle E-Mail-Adresse." };
+  }
+
+  const origin = await getOrigin();
+  const { error } = await supabase.auth.updateUser(
+    { email: parsed.data.email },
+    { emailRedirectTo: `${origin}/auth/confirm?next=/einstellungen` },
+  );
+
+  if (error) {
+    return { error: "Die Adresse konnte nicht geändert werden. Bitte versuche es erneut." };
+  }
+
+  await logSecurityEvent("email_change_requested", { userId: user.id });
+  revalidatePath("/einstellungen");
+  return {
+    success:
+      "Wir haben dir einen Bestätigungslink an die neue Adresse geschickt. Die Änderung greift, sobald du ihn geöffnet hast.",
+  };
+}
+
+/**
+ * Meldet ab und verwirft die Session serverseitig.
+ *
+ * `signOut` wird bewusst nicht abgesichert übersprungen: Selbst wenn Supabase
+ * nicht erreichbar ist, muss die Weiterleitung zur Anmeldung stattfinden —
+ * andernfalls bliebe der Nutzer scheinbar angemeldet zurück. `redirect` wirft
+ * intern und muss darum außerhalb des try-Blocks stehen.
+ */
+export async function logoutAction(): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    await supabase.auth.signOut({ scope: "local" });
+    await logSecurityEvent("logout", { userId: user?.id });
+  } catch {
+    // Abmelden darf niemals an einem Netzwerkfehler scheitern.
+  }
+
+  redirect("/login?abgemeldet=1");
 }

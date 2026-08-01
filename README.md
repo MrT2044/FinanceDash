@@ -30,7 +30,6 @@ Supabase-Dashboard unter *Project Settings → API*:
 | `SUPABASE_SERVICE_ROLE_KEY` | ja | Supabase → API Keys → secret (**niemals im Client verwenden**) |
 | `NEXT_PUBLIC_SITE_URL` | für Betrieb | Öffentliche Adresse ohne Schrägstrich am Ende. Bestimmt die Links in Bestätigungs- und Reset-Mails. Lokal `http://localhost:3000` |
 | `UPSTASH_REDIS_REST_URL` / `_TOKEN` | für Betrieb | [console.upstash.com](https://console.upstash.com) (kostenlos) |
-| `REGISTRATION_ALLOWLIST` | nein | Kommagetrennte E-Mail-Adressen. Gesetzt = nur diese dürfen sich registrieren |
 | `SESSION_IDLE_TIMEOUT_MINUTES` | nein | Automatische Abmeldung nach Inaktivität, Standard 30 |
 | `GEMINI_API_KEY` | nein | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (kostenlos) |
 
@@ -67,8 +66,24 @@ Beide Wege legen Schema, RLS-Policies und die System-Kategorien an.
 
 ### 4. Auth konfigurieren
 
-Im Supabase-Dashboard unter *Authentication → URL Configuration* die Site-URL und
-`<deine-domain>/auth/callback` als Redirect-URL eintragen.
+Im Supabase-Dashboard unter *Authentication → URL Configuration* die Site-URL
+eintragen und beide Rückläufer als Redirect-URLs freigeben:
+
+```
+<deine-domain>/auth/confirm
+<deine-domain>/auth/callback
+```
+
+`/auth/confirm` ist der Weg für Bestätigungs- und Reset-Links, `/auth/callback`
+bleibt für ältere Links und OAuth bestehen.
+
+Unter *Authentication → Emails* die Vorlagen aus `supabase/templates/`
+einfügen — `confirm-signup.html`, `recovery.html` und `email-change.html`. Die
+CLI überträgt sie nicht ins gehostete Projekt, dort ist es ein manueller Schritt.
+Ohne diesen Schritt verschickt Supabase seine Standardtexte; die Anmeldung
+funktioniert trotzdem, weil `/auth/callback` auch das `code`-Format versteht.
+
+Unter *Authentication → Providers → Email* sollte **Confirm email** aktiv sein.
 
 ### 5. Konfiguration prüfen
 
@@ -118,17 +133,20 @@ src/
 │   ├── (auth)/          Login, Registrierung, Passwort-Reset
 │   ├── (dashboard)/     Geschützte Seiten (Übersicht, Ausgaben, Kategorien, …)
 │   ├── api/export/      DSGVO-Datenexport
-│   └── auth/callback/   E-Mail-Bestätigung & Reset-Links
+│   └── auth/            confirm & callback (E-Mail-Links), fehler (Erklärseite)
+├── components/brand/    Logo als Bild- und Wortmarke
 ├── lib/
 │   ├── supabase/        Browser-, Server- und Admin-Client
+│   ├── auth/            Auswertung der E-Mail- und OAuth-Rückläufer
 │   ├── csv-import/      Format-Erkennung, Bank-Parser, Normalisierung, Dedupe
 │   ├── categorization/  Regel-Engine, Lernmechanismus, Provider-Interface
-│   ├── analytics/       KPIs und Insights-Engine
+│   ├── analytics/       KPIs, Insights-Engine, Monatsauswahl
 │   ├── rate-limit/      Upstash mit In-Memory-Fallback
 │   └── security/        Audit-Logging
 ├── server/actions/      Server Actions (Mutationen)
 └── proxy.ts             Session-Refresh und Route-Guard
 supabase/migrations/     Schema + RLS-Policies
+supabase/templates/      Gebrandete E-Mail-Vorlagen
 tests/                   Parser- und Regel-Engine-Tests mit Bank-Fixtures
 ```
 

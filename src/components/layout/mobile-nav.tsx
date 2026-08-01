@@ -9,7 +9,10 @@ export function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="sticky bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur md:hidden">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 backdrop-blur-md md:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       <ul className="flex items-stretch">
         {mobileNavItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -17,12 +20,22 @@ export function MobileNav() {
             <li key={href} className="flex-1">
               <Link
                 href={href}
+                aria-current={active ? "page" : undefined}
+                // Mindestens 44px hoch: sichere Trefferfläche für den Daumen.
                 className={cn(
-                  "flex flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium transition-colors",
+                  "flex min-h-[3.25rem] flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium",
+                  "transition-colors duration-200 active:scale-95 active:bg-muted/60",
                   active ? "text-primary" : "text-muted-foreground",
                 )}
               >
-                <Icon className="size-5" />
+                <span
+                  className={cn(
+                    "grid size-7 place-items-center rounded-lg transition-colors duration-200",
+                    active && "bg-primary/10",
+                  )}
+                >
+                  <Icon className="size-[1.15rem]" />
+                </span>
                 {label}
               </Link>
             </li>

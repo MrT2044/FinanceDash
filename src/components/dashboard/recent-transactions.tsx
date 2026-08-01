@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { formatCurrency, formatDate } from "@/lib/utils/format";
+import { Amount } from "@/components/ui/amount";
+import { formatDate } from "@/lib/utils/format";
 import type { CategoryMeta, TransactionRecord } from "@/lib/analytics/types";
-import { cn } from "@/lib/utils";
 
 export function RecentTransactions({
   transactions,
@@ -15,14 +16,15 @@ export function RecentTransactions({
   const categoryById = new Map(categories.map((category) => [category.id, category]));
 
   return (
-    <Card className="border-border/60">
+    <Card className="card-elevated">
       <CardHeader className="flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base">Letzte Buchungen</CardTitle>
+        <CardTitle>Letzte Buchungen</CardTitle>
         <Link
           href="/transaktionen"
           className={buttonVariants({ variant: "ghost", size: "sm" })}
         >
           Alle ansehen
+          <ArrowRight className="size-3.5" />
         </Link>
       </CardHeader>
       <CardContent className="px-2 pb-2">
@@ -33,10 +35,15 @@ export function RecentTransactions({
               : undefined;
 
             return (
-              <li key={transaction.id} className="flex items-center gap-3 px-3 py-2.5">
+              <li
+                key={transaction.id}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/50"
+              >
                 <span
                   className="size-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: category?.color ?? "#94a3b8" }}
+                  style={{
+                    backgroundColor: category?.color ?? "var(--muted-foreground)",
+                  }}
                 />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">
@@ -47,14 +54,10 @@ export function RecentTransactions({
                     {category?.name ?? "Nicht zugeordnet"}
                   </p>
                 </div>
-                <span
-                  className={cn(
-                    "shrink-0 text-sm font-medium tabular-nums",
-                    transaction.amount > 0 && "text-emerald-600 dark:text-emerald-400",
-                  )}
-                >
-                  {formatCurrency(transaction.amount)}
-                </span>
+                <Amount
+                  value={transaction.amount}
+                  className="shrink-0 text-sm font-medium"
+                />
               </li>
             );
           })}

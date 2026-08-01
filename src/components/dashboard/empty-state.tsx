@@ -11,7 +11,7 @@ export function EmptyState({
   description?: string;
 }) {
   return (
-    <Card className="border-dashed border-border/70">
+    <Card className="animate-fade border-dashed border-border/70 ring-0">
       <CardContent className="flex flex-col items-center gap-4 px-6 py-14 text-center">
         <span className="grid size-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
           <Upload className="size-5" />

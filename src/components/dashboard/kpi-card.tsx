@@ -16,24 +16,31 @@ export function KpiCard({
   tone?: "neutral" | "positive" | "negative";
 }) {
   return (
-    <Card className="border-border/60">
+    <Card className="card-elevated">
       <CardContent className="flex items-start justify-between gap-3 p-5">
         <div className="min-w-0 space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {label}
           </p>
           <p
             className={cn(
-              "truncate text-2xl font-semibold tabular-nums tracking-tight",
-              tone === "positive" && "text-emerald-600 dark:text-emerald-400",
-              tone === "negative" && "text-rose-600 dark:text-rose-400",
+              "truncate text-2xl font-semibold tracking-tight tabular-nums",
+              tone === "positive" && "text-positive",
+              tone === "negative" && "text-negative",
             )}
           >
             {value}
           </p>
           {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
         </div>
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
+        <span
+          className={cn(
+            "grid size-9 shrink-0 place-items-center rounded-xl transition-colors",
+            tone === "positive" && "bg-positive/10 text-positive",
+            tone === "negative" && "bg-negative/10 text-negative",
+            tone === "neutral" && "bg-primary/10 text-primary",
+          )}
+        >
           <Icon className="size-4" />
         </span>
       </CardContent>

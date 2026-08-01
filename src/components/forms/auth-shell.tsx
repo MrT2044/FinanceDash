@@ -1,6 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Logo } from "@/components/brand/logo";
 
 export function AuthShell({
   title,
@@ -14,15 +21,22 @@ export function AuthShell({
   footer?: ReactNode;
 }) {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-4 py-10">
-      <Link href="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
-        <span className="grid size-8 place-items-center rounded-xl bg-primary text-primary-foreground text-sm font-bold">
-          F
-        </span>
-        FinanceDash
+    <div className="relative flex min-h-dvh flex-col items-center justify-center gap-6 px-4 py-10">
+      {/* Sehr dezenter blauer Lichtschein hinter der Karte — erzeugt Tiefe,
+          ohne den Inhalt zu stören. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(60%_100%_at_50%_0%,var(--primary)_0%,transparent_70%)] opacity-[0.07]"
+      />
+
+      <Link
+        href="/"
+        className="animate-fade text-lg transition-opacity hover:opacity-80"
+      >
+        <Logo id="auth" markClassName="size-9" />
       </Link>
 
-      <Card className="w-full max-w-md border-border/60 shadow-sm">
+      <Card className="card-elevated w-full max-w-md animate-rise shadow-[var(--shadow-soft-md)]">
         <CardHeader className="space-y-1.5">
           <CardTitle className="text-xl">{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
@@ -30,9 +44,7 @@ export function AuthShell({
         <CardContent>{children}</CardContent>
       </Card>
 
-      {footer ? (
-        <p className="text-sm text-muted-foreground">{footer}</p>
-      ) : null}
+      {footer ? <p className="text-sm text-muted-foreground">{footer}</p> : null}
     </div>
   );
 }

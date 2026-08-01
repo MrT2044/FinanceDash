@@ -31,7 +31,13 @@ export default async function DashboardLayout({
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar email={user.email ?? ""} displayName={profile?.display_name ?? null} />
-        <main className="flex-1 px-4 py-6 md:px-6 md:py-8">{children}</main>
+        {/*
+          Der untere Abstand hält den Inhalt über der Bottom-Navigation und der
+          Home-Anzeige des Geräts frei — sonst verdeckt sie die letzte Zeile.
+        */}
+        <main className="mx-auto w-full max-w-[100rem] flex-1 px-4 pt-6 pb-24 md:px-6 md:py-8 md:pb-10">
+          {children}
+        </main>
         <MobileNav />
       </div>
     </div>
