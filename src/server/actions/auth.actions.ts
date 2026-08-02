@@ -27,6 +27,38 @@ function safeRedirectTarget(value: FormDataEntryValue | null): string {
   return /^\/(?!\/)[A-Za-z0-9\-._~/]*$/.test(raw) ? raw : "/dashboard";
 }
 
+/**
+ * Übersetzt Supabase-Fehlercodes in verständliche Sätze.
+ *
+ * Wichtig für die Fehlersuche: Zuvor endete jeder Fehler in „Bitte versuche es
+ * erneut", wodurch ein nicht verifizierter SMTP-Absender genauso aussah wie ein
+ * Tippfehler in der Adresse. Unbekannte Codes werden deshalb mitsamt Code
+ * ausgegeben statt verschluckt.
+ */
+function describeAuthError(error: { code?: string; message: string }): string {
+  switch (error.code) {
+    case "email_address_invalid":
+      return "Diese E-Mail-Adresse ist ungültig. Prüfe sie auf Tippfehler — häufig ist die Endung vertauscht (z. B. „.con“ statt „.com“).";
+    case "email_exists":
+    case "user_already_exists":
+      return "Für diese Adresse gibt es bereits ein Konto. Melde dich an oder setze dein Passwort zurück.";
+    case "over_email_send_rate_limit":
+      return "Es wurden zu viele E-Mails in kurzer Zeit angefordert. Bitte warte etwa eine Stunde und versuche es dann erneut.";
+    case "weak_password":
+      return "Das Passwort ist zu schwach. Wähle ein längeres Passwort mit Groß- und Kleinbuchstaben sowie einer Ziffer.";
+    case "signup_disabled":
+      return "Die Registrierung ist derzeit deaktiviert.";
+    case "over_request_rate_limit":
+      return "Zu viele Anfragen. Bitte warte einen Moment.";
+    case "unexpected_failure":
+      // Praktisch immer der Mailversand: Supabase legt das Konto an, kann die
+      // Bestätigung aber nicht zustellen und meldet 500.
+      return "Das Konto konnte angelegt werden, aber die Bestätigungs-E-Mail ließ sich nicht zustellen. Der E-Mail-Versand des Servers ist nicht korrekt eingerichtet.";
+    default:
+      return `Die Registrierung ist fehlgeschlagen (${error.code ?? "unbekannt"}): ${error.message}`;
+  }
+}
+
 async function getOrigin(): Promise<string> {
   const headerList = await headers();
   return (
@@ -120,8 +152,12 @@ export async function registerAction(
   });
 
   if (error) {
-    await logSecurityEvent("register_failed", { detail: { reason: error.name } });
-    return { error: "Die Registrierung ist fehlgeschlagen. Bitte versuche es erneut." };
+    // Code und Originalmeldung landen im Audit-Log, damit sich Fehlversuche
+    // später nachvollziehen lassen, ohne die Serverlogs zu durchsuchen.
+    await logSecurityEvent("register_failed", {
+      detail: { code: error.code ?? null, message: error.message, status: error.status ?? null },
+    });
+    return { error: describeAuthError(error) };
   }
 
   await logSecurityEvent("register_success");
@@ -147,15 +183,30 @@ export async function requestPasswordResetAction(
   if (limit.success) {
     const supabase = await createClient();
     const origin = await getOrigin();
-    await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
       redirectTo: `${origin}/auth/confirm?next=/passwort-aendern`,
     });
+
+    if (error) {
+      await logSecurityEvent("password_reset_requested", {
+        detail: { code: error.code ?? null, message: error.message },
+      });
+
+      // Fehler der Zustellung selbst verraten nichts über das Konto und dürfen
+      // daher gezeigt werden — sonst wartet man vergeblich auf eine E-Mail,
+      // die nie verschickt wurde.
+      return { error: describeAuthError(error) };
+    }
+
     await logSecurityEvent("password_reset_requested");
   } else {
     await logSecurityEvent("rate_limited", { detail: { action: "password_reset" } });
+    return {
+      error: "Zu viele Anfragen in kurzer Zeit. Bitte warte einen Moment.",
+    };
   }
 
-  // Immer dieselbe Antwort, damit nicht erkennbar ist, ob die Adresse existiert.
+  // Sonst immer dieselbe Antwort, damit nicht erkennbar ist, ob die Adresse existiert.
   return {
     success:
       "Falls ein Konto mit dieser Adresse existiert, haben wir dir einen Link zum Zurücksetzen geschickt.",
@@ -185,13 +236,16 @@ export async function resendConfirmationAction(
   if (limit.success) {
     const supabase = await createClient();
     const origin = await getOrigin();
-    await supabase.auth.resend({
+    const { error } = await supabase.auth.resend({
       type: "signup",
       email: parsed.data.email,
       options: { emailRedirectTo: `${origin}/auth/confirm` },
     });
+
+    if (error) return { error: describeAuthError(error) };
   } else {
     await logSecurityEvent("rate_limited", { detail: { action: "resend_confirmation" } });
+    return { error: "Zu viele Anfragen in kurzer Zeit. Bitte warte einen Moment." };
   }
 
   // Wie beim Passwort-Reset bewusst immer dieselbe Antwort.
