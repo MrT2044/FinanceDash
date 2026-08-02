@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Aus dem Supabase-Projekt generierte Typen.
  *
  * Nach jeder Schemaänderung neu erzeugen:
@@ -337,6 +337,7 @@ export type Database = {
       transactions: {
         Row: {
           account_id: string
+          accounting_month: string | null
           amount: number
           booking_date: string
           category_confidence: number | null
@@ -357,6 +358,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          accounting_month?: string | null
           amount: number
           booking_date: string
           category_confidence?: number | null
@@ -377,6 +379,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          accounting_month?: string | null
           amount?: number
           booking_date?: string
           category_confidence?: number | null

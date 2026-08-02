@@ -7,6 +7,12 @@ export type TransactionRecord = {
   category_id: string | null;
   category_source: string;
   account_id: string;
+  /**
+   * Abweichend zugeordneter Abrechnungsmonat (JJJJ-MM), z. B. für ein Gehalt,
+   * das am Monatsende gebucht wird, aber zum Folgemonat zählt.
+   * NULL = Monat des Buchungsdatums.
+   */
+  accounting_month: string | null;
 };
 
 export type CategoryMeta = {

@@ -13,6 +13,17 @@ const UNCATEGORIZED: Pick<CategoryMeta, "name" | "color" | "slug"> = {
   slug: "nicht-zugeordnet",
 };
 
+/**
+ * Monat, unter dem eine Buchung ausgewertet wird.
+ *
+ * Einzige Stelle, an der über die Monatszugehörigkeit entschieden wird — eine
+ * manuelle Zuordnung muss in Verlauf, Kategorien und Kennzahlen gleichermaßen
+ * greifen, sonst widersprechen sich die Ansichten.
+ */
+export function effectiveMonthKey(transaction: TransactionRecord): string {
+  return transaction.accounting_month ?? toMonthKey(transaction.booking_date);
+}
+
 export function isExpense(transaction: TransactionRecord): boolean {
   return transaction.amount < 0;
 }
@@ -36,7 +47,7 @@ export function filterByMonth(
   monthKey: string,
 ): TransactionRecord[] {
   return transactions.filter(
-    (transaction) => toMonthKey(transaction.booking_date) === monthKey,
+    (transaction) => effectiveMonthKey(transaction) === monthKey,
   );
 }
 
@@ -74,7 +85,7 @@ export function buildMonthlySeries(
   );
 
   for (const transaction of transactions) {
-    const bucket = buckets.get(toMonthKey(transaction.booking_date));
+    const bucket = buckets.get(effectiveMonthKey(transaction));
     if (!bucket) continue;
 
     if (transaction.amount < 0) bucket.expenses -= transaction.amount;
@@ -106,7 +117,7 @@ export function buildCategorySummaries(
     if (!relevant(transaction)) continue;
 
     const value = Math.abs(transaction.amount);
-    const month = toMonthKey(transaction.booking_date);
+    const month = effectiveMonthKey(transaction);
     const key = transaction.category_id;
 
     if (month === options.monthKey) {

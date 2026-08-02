@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { MonthPicker } from "@/components/dashboard/month-picker";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { CategoryPicker } from "@/components/transactions/category-picker";
+import { MonthAssignment } from "@/components/transactions/month-assignment";
 import { loadDashboardData } from "@/lib/analytics/load";
 import { resolveMonthKey } from "@/lib/analytics/month";
 import { filterByMonth, sumExpenses, sumIncome } from "@/lib/analytics/kpi";
@@ -165,6 +166,12 @@ export default async function TransactionsPage({
                       </p>
                     ) : null}
 
+                    <MonthAssignment
+                      transactionId={transaction.id}
+                      bookingDate={transaction.booking_date}
+                      accountingMonth={transaction.accounting_month}
+                    />
+
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <CategoryPicker
                         transactionId={transaction.id}
@@ -197,7 +204,8 @@ export default async function TransactionsPage({
                       <TableHead className="w-[6.5rem]">Datum</TableHead>
                       <TableHead>Händler / Verwendungszweck</TableHead>
                       <TableHead className="w-[11rem]">Kategorie</TableHead>
-                      <TableHead className="w-[9rem]">Konto</TableHead>
+                      <TableHead className="w-[10rem]">Zählt zu</TableHead>
+                      <TableHead className="w-[8rem]">Konto</TableHead>
                       <TableHead className="w-[5.5rem]">Quelle</TableHead>
                       <TableHead className="w-[7.5rem] text-right">Betrag</TableHead>
                     </TableRow>
@@ -226,6 +234,13 @@ export default async function TransactionsPage({
                             transactionId={transaction.id}
                             categoryId={transaction.category_id}
                             categories={data.categories}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <MonthAssignment
+                            transactionId={transaction.id}
+                            bookingDate={transaction.booking_date}
+                            accountingMonth={transaction.accounting_month}
                           />
                         </TableCell>
                         <TableCell className="truncate text-xs text-muted-foreground">

@@ -262,10 +262,12 @@ export async function generateInsights(
     supabase
       .from("transactions")
       .select(
-        "id, booking_date, amount, purpose, counterparty_name, category_id, category_source, account_id",
+        "id, booking_date, amount, purpose, counterparty_name, category_id, category_source, account_id, accounting_month",
       )
       .gte("booking_date", windowStart)
-      .lte("booking_date", monthEnd(monthKey)),
+      // Ein Monat Puffer: Buchungen können einem früheren Monat zugeordnet
+      // sein als ihrem Buchungsdatum (z. B. Gehalt am Monatsersten).
+      .lte("booking_date", monthEnd(addMonths(monthKey, 1))),
     supabase.from("categories").select("id, name, slug, color, icon"),
   ]);
 

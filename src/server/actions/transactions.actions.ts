@@ -14,6 +14,63 @@ const updateCategorySchema = z.object({
 
 export type CategoryUpdateResult = { ok: true } | { ok: false; error: string };
 
+const monthAssignmentSchema = z.object({
+  transactionId: z.uuid(),
+  /** Leer bedeutet: Zuordnung aufheben, wieder das Buchungsdatum verwenden. */
+  monthKey: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Ungültiger Monat.")
+    .or(z.literal("")),
+});
+
+/**
+ * Ordnet eine Buchung einem abweichenden Abrechnungsmonat zu.
+ *
+ * Anwendungsfall: Das Gehalt wird am 30. gebucht, zählt aber zum Folgemonat.
+ * Ohne Zuordnung stünden zwei Gehälter im selben Monat und im nächsten keines,
+ * was Sparrate und Monatsvergleich unbrauchbar macht.
+ */
+export async function updateTransactionMonthAction(
+  formData: FormData,
+): Promise<CategoryUpdateResult> {
+  const parsed = monthAssignmentSchema.safeParse({
+    transactionId: formData.get("transactionId"),
+    monthKey: formData.get("monthKey") ?? "",
+  });
+
+  if (!parsed.success) return { ok: false, error: "Ungültige Auswahl." };
+
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "Bitte melde dich erneut an." };
+
+    // RLS begrenzt auf eigene Buchungen; `select` bestätigt den Treffer.
+    const { data, error } = await supabase
+      .from("transactions")
+      .update({ accounting_month: parsed.data.monthKey || null })
+      .eq("id", parsed.data.transactionId)
+      .select("id");
+
+    if (error) {
+      return { ok: false, error: "Der Monat konnte nicht gespeichert werden." };
+    }
+    if (!data?.length) return { ok: false, error: "Buchung nicht gefunden." };
+
+    revalidatePath("/transaktionen");
+    revalidatePath("/dashboard");
+    revalidatePath("/kategorien");
+    revalidatePath("/ausgaben");
+    revalidatePath("/einnahmen");
+
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Der Monat konnte nicht gespeichert werden." };
+  }
+}
+
 /**
  * Ordnet eine Buchung manuell einer Kategorie zu.
  *

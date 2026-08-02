@@ -41,10 +41,14 @@ export async function loadDashboardData(monthKeyParam?: string): Promise<Dashboa
       supabase
         .from("transactions")
         .select(
-          "id, booking_date, amount, purpose, counterparty_name, category_id, category_source, account_id",
+          "id, booking_date, amount, purpose, counterparty_name, category_id, category_source, account_id, accounting_month",
         )
-        .gte("booking_date", monthStart(addMonths(monthKey, -(HISTORY_WINDOW - 1))))
-        .lte("booking_date", monthEnd(monthKey))
+        // Einen Monat Puffer nach beiden Seiten: Eine Buchung kann einem
+        // anderen Monat zugeordnet sein als ihrem Buchungsdatum. Ohne den
+        // Puffer fiele ein am 1. August gebuchtes Julie-Gehalt aus dem Fenster
+        // und fehlte in der Juli-Auswertung.
+        .gte("booking_date", monthStart(addMonths(monthKey, -HISTORY_WINDOW)))
+        .lte("booking_date", monthEnd(addMonths(monthKey, 1)))
         .order("booking_date", { ascending: false }),
       supabase.from("categories").select("id, name, slug, color, icon").order("sort_order"),
       supabase.from("accounts").select("id, name").order("name"),
