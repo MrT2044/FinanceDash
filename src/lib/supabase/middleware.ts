@@ -15,9 +15,34 @@ const PUBLIC_PATHS = [
 
 const AUTH_PATHS = ["/login", "/register", "/reset-password"];
 
+const DEFAULT_IDLE_TIMEOUT_MINUTES = 30;
+/** Unter dieser Grenze wäre die Anwendung unbenutzbar. */
+const MIN_IDLE_TIMEOUT_MINUTES = 1;
+
+/**
+ * Liest das Inaktivitätsfenster aus der Umgebung.
+ *
+ * Bewusst nicht `Number(env ?? 30)`: `??` greift nur bei `null`/`undefined`.
+ * Eine auf der Plattform angelegte, aber leer gelassene Variable liefert `""`,
+ * und `Number("")` ist `0` — das Fenster wäre null Millisekunden und jede
+ * Sitzung sofort abgelaufen. Das Ergebnis war eine Anmeldeschleife, aus der
+ * man nicht mehr herauskam. Ungültige Werte fallen darum auf den Standard
+ * zurück, zu kleine werden angehoben.
+ */
+export function resolveIdleTimeoutMs(): number {
+  const raw = process.env.SESSION_IDLE_TIMEOUT_MINUTES?.trim();
+  const parsed = raw ? Number(raw) : Number.NaN;
+
+  const minutes =
+    Number.isFinite(parsed) && parsed > 0
+      ? Math.max(parsed, MIN_IDLE_TIMEOUT_MINUTES)
+      : DEFAULT_IDLE_TIMEOUT_MINUTES;
+
+  return minutes * 60_000;
+}
+
 /** Nach dieser Zeit ohne Seitenaufruf wird die Sitzung beendet. */
-const IDLE_TIMEOUT_MS =
-  Number(process.env.SESSION_IDLE_TIMEOUT_MINUTES ?? 30) * 60_000;
+const IDLE_TIMEOUT_MS = resolveIdleTimeoutMs();
 const LAST_SEEN_COOKIE = "fd-last-seen";
 const LAST_SEEN_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
