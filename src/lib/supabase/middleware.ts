@@ -43,8 +43,19 @@ export function resolveIdleTimeoutMs(): number {
 
 /** Nach dieser Zeit ohne Seitenaufruf wird die Sitzung beendet. */
 const IDLE_TIMEOUT_MS = resolveIdleTimeoutMs();
-const LAST_SEEN_COOKIE = "fd-last-seen";
+export const LAST_SEEN_COOKIE = "fd-last-seen";
 const LAST_SEEN_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+
+/** Einheitliche Optionen, damit Setzen und Löschen denselben Cookie treffen. */
+export function lastSeenCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: LAST_SEEN_COOKIE_MAX_AGE_SECONDS,
+  };
+}
 
 function matchesPath(pathname: string, paths: string[]) {
   return paths.some(
@@ -91,9 +102,21 @@ export async function updateSession(request: NextRequest) {
     const lastSeen = lastSeenRaw ? Number(lastSeenRaw) : null;
     const now = Date.now();
 
-    if (lastSeen && Number.isFinite(lastSeen) && now - lastSeen > IDLE_TIMEOUT_MS) {
-      // signOut() schreibt die geleerten Auth-Cookies in `supabaseResponse`.
-      await supabase.auth.signOut();
+    // Auf den Anmeldeseiten nie ablaufen lassen: Dort wurde der Zeitstempel
+    // gerade erst gesetzt, und ein Timeout hier warfe direkt wieder zurück.
+    const onAuthPath = matchesPath(pathname, AUTH_PATHS);
+
+    if (
+      !onAuthPath &&
+      lastSeen &&
+      Number.isFinite(lastSeen) &&
+      now - lastSeen > IDLE_TIMEOUT_MS
+    ) {
+      // `scope: "local"` beendet ausschließlich die Sitzung dieses Geräts.
+      // Voreingestellt ist "global" — damit entzog der Leerlauf auf einem Gerät
+      // allen anderen Geräten die Anmeldung, auch dem gerade frisch
+      // angemeldeten Telefon. Genau das ließ sich von außen nicht erklären.
+      await supabase.auth.signOut({ scope: "local" });
 
       const timeoutUrl = new URL("/login", request.url);
       timeoutUrl.searchParams.set("grund", "inaktiv");
@@ -116,10 +139,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     supabaseResponse.cookies.set(LAST_SEEN_COOKIE, String(now), {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
+      ...lastSeenCookieOptions(),
       // Bewusst deutlich laenger als das Inaktivitaetsfenster: liefe der Cookie
       // zeitgleich mit dem Timeout ab, waere der Zeitstempel beim Pruefen schon
       // weg und die Abmeldung wuerde nie ausgeloest. Der Cookie enthaelt nur

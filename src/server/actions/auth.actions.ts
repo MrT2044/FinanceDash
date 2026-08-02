@@ -1,9 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { LAST_SEEN_COOKIE, lastSeenCookieOptions } from "@/lib/supabase/middleware";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp, logSecurityEvent } from "@/lib/security/audit-log";
 import {
@@ -112,6 +113,20 @@ export async function loginAction(
   }
 
   await logSecurityEvent("login_success", { userId: data.user.id });
+
+  /*
+   * Den Inaktivitäts-Zeitstempel sofort auf jetzt setzen.
+   *
+   * Ohne das prüfte die Middleware beim allerersten Aufruf nach der Anmeldung
+   * gegen einen Zeitstempel, der noch von der vorherigen Sitzung stammte — der
+   * Cookie hält 30 Tage. Auf jedem Gerät, das schon einmal angemeldet war,
+   * schlug der Timeout deshalb sofort wieder zu, und man landete endlos auf der
+   * Anmeldung mit "zu lange inaktiv". Am Telefon fiel das nicht auf, weil
+   * Safari den Cookie zwischenzeitlich verworfen hatte; die zum Startbildschirm
+   * hinzugefügte Version hat einen eigenen Cookie-Speicher und war betroffen.
+   */
+  (await cookies()).set(LAST_SEEN_COOKIE, String(Date.now()), lastSeenCookieOptions());
+
   redirect(safeRedirectTarget(formData.get("redirectTo")));
 }
 
@@ -408,6 +423,13 @@ export async function logoutAction(): Promise<void> {
 
     await supabase.auth.signOut({ scope: "local" });
     await logSecurityEvent("logout", { userId: user?.id });
+
+    // Zeitstempel mitnehmen, sonst bliebe er als Altlast für die nächste
+    // Anmeldung auf diesem Gerät liegen.
+    (await cookies()).set(LAST_SEEN_COOKIE, "", {
+      ...lastSeenCookieOptions(),
+      maxAge: 0,
+    });
   } catch {
     // Abmelden darf niemals an einem Netzwerkfehler scheitern.
   }
